@@ -1,73 +1,115 @@
 /**
  * ResourceCircleView — Canvas-basierte Ressourcen-Kreise Visualisierung
  *
- * Zwei wachsende Kreise für v0.1:
- *   - Stein (Ocker #c8960c) — logarithmisch wachsend
- *   - Mana  (Türkis #4ecdc4 / Amber-Glühen) — pulsiert bei MANA_LOW
- *
- * Läuft per Ticker (1 tick/Sekunde) — Animation via requestAnimationFrame
- * für fließende Interpolation zwischen Ticks.
+ * Konzentrische Kreise für alle Ressourcen um einen Mittelpunkt.
+ * Radius wächst mit √(amount) — spiegelt Erntefläche wider.
+ * Kreise leicht transparent, Overlap erlaubt.
+ * Bei worldManaFactor < 0.5: subtile Pulsation.
  */
-import { gameState } from '../core/GameState.js';
 import { ticker } from '../core/Ticker.js';
-import { eventBus } from '../core/EventBus.js';
+import { resourceManager } from '../resources/ResourceManager.js';
+import { worldMana } from '../resources/WorldMana.js';
 
-// Farb-Konstanten (MASTER §8)
-const COLOR_STONE_FILL   = 'rgba(200, 150, 12, 0.35)';   // Ocker, transparent
-const COLOR_STONE_STROKE = '#c8960c';
-const COLOR_MANA_FILL    = 'rgba(78, 205, 196, 0.35)';   // Türkis, transparent
-const COLOR_MANA_STROKE  = '#4ecdc4';
-const COLOR_MANA_PULSE   = 'rgba(240, 165, 0, 0.35)';    // Amber-Glühen bei MANA_LOW
-const COLOR_MANA_PULSE_STROKE = '#f0a500';
+// Nur harvestbare Ressourcen (gesammelt von Ernte-Golems, Pfade für Laufdistanz-Darstellung)
+const RESOURCE_DEFS = [
+    { id: 'earth', symbol: '🟤', color: 'rgba(200, 150, 110, 0.5)', stroke: '#c8966e' },
+    { id: 'water', symbol: '💧', color: 'rgba(100, 150, 200, 0.5)', stroke: '#6496c8' },
+    { id: 'wood',  symbol: '🪵', color: 'rgba(150, 120, 80, 0.5)',  stroke: '#967850' },
+];
 
 // Layout
-const BASE_RADIUS   = 30;   // Startradius in px
-const LOG_SCALE     = 18;   // Skalierungsfaktor für logarithmisches Wachstum
-const STONE_CENTER  = { x: 0.38, y: 0.50 }; // relative Position (% der Canvas-Breite/-Höhe)
-const MANA_CENTER   = { x: 0.62, y: 0.50 };
+const MIN_DISTANCE_RADIUS = 14;  // sehr nah (viele Golems)
+const MAX_DISTANCE_RADIUS = 170; // weit entfernte Suchen (wenige Golems)
+const MIN_DISPLAY_RADIUS = 18;
+const MAX_DISPLAY_RADIUS = 88;
+const PULSE_AMPLITUDE = 3; // ±3px Pulsation
+const PULSE_SPEED = 2.0; // Bogenmaß pro Sekunde
 
-// Puls-Animation Zustand
-interface PulseState {
-    active: boolean;
-    phase: number;   // 0..2π
-    speed: number;   // Bogenmaß pro Sekunde
+const RESOURCE_OFFSETS: Record<string, { x: number; y: number }> = {
+    // Konzentrisch: alle um Mittelpunkt, keine Offsets
+    earth: { x: 0, y: 0 },
+    water: { x: 0, y: 0 },
+    wood:  { x: 0, y: 0 },
+};
+
+interface ResourceCircle {
+    id: string;
+    symbol: string;
+    color: string;
+    stroke: string;
+    targetRadius: number;
+    currentRadius: number;
+    label?: string;
+    labelColor?: string;
+}
+
+/**
+ * ResourceCircleCalculator
+ *
+ * Beinhaltet reine Mathe zur Radius-Berechnung basierend auf Rate.
+ * Sauber getestet und sitzt von UI-getrennt.
+ */
+class ResourceCircleCalculator {
+    calcDistanceRadius(productionRate: number): number {
+        const effectiveRate = Math.max(0, productionRate);
+        const normalized = 1 / (1 + effectiveRate);
+        return MIN_DISTANCE_RADIUS + (MAX_DISTANCE_RADIUS - MIN_DISTANCE_RADIUS) * normalized;
+    }
+}
+
+/**
+ * MapLegend
+ *
+ * Rendern von Listen-Labels im Canvas (kein Overlap, komplette Übersicht).
+ */
+class MapLegend {
+    private ctx: CanvasRenderingContext2D;
+
+    constructor(ctx: CanvasRenderingContext2D) {
+        this.ctx = ctx;
+    }
+
+    renderLegend(lines: Array<{ text: string; color: string }>, x: number, h: number): void {
+        let legendY = h - 20;
+        this.ctx.textAlign = 'left';
+        this.ctx.font = '12px monospace';
+
+        for (const row of lines) {
+            this.ctx.fillStyle = row.color;
+            this.ctx.fillText(row.text, x, legendY);
+            legendY -= 16;
+        }
+    }
 }
 
 class ResourceCircleViewImpl {
-    private canvas: HTMLCanvasElement;
-    private ctx: CanvasRenderingContext2D;
-
-    // Gecachte Radius-Werte (werden per Tick aktualisiert)
-    private stoneRadius: number = BASE_RADIUS;
-    private manaRadius:  number = BASE_RADIUS;
-
-    // Smooth-Interpolation: Zielwerte vs. aktuell gerenderte Werte
-    private stoneRadiusCurrent: number = BASE_RADIUS;
-    private manaRadiusCurrent:  number = BASE_RADIUS;
-
-    private pulse: PulseState = { active: false, phase: 0, speed: 2.0 };
-
+    private canvas!: HTMLCanvasElement;
+    private ctx!: CanvasRenderingContext2D;
+    private circles: ResourceCircle[] = [];
+    private visibleResources: Map<string, boolean> = new Map();
+    private pulsePhase: number = 0;
     private boundTick: (delta: number) => void;
     private rafId: number = 0;
 
-    constructor(canvas: HTMLCanvasElement) {
-        this.canvas = canvas;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error('ResourceCircleView: Canvas 2D-Kontext nicht verfügbar.');
-        this.ctx = ctx;
-
+    constructor() {
+        // Canvas wird in createControlPanel erstellt
         this.boundTick = this.onTick.bind(this);
         ticker.register(this.boundTick);
 
-        // MANA_LOW → Puls aktivieren
-        eventBus.on('MANA_LOW', (_event) => {
-            this.pulse.active = true;
-            this.pulse.phase  = 0;
-        });
+        // Initialisiere Kreise und Sichtbarkeit
+        for (const def of RESOURCE_DEFS) {
+            this.circles.push({
+                id: def.id,
+                symbol: def.symbol,
+                color: def.color,
+                stroke: def.stroke,
+                targetRadius: 0,
+                currentRadius: 0,
+            });
+            this.visibleResources.set(def.id, true);
+        }
 
-        this.resizeCanvas();
-        window.addEventListener('resize', () => this.resizeCanvas());
-
+        this.createControlPanel();
         this.startRenderLoop();
     }
 
@@ -76,29 +118,28 @@ class ResourceCircleViewImpl {
         this.canvas.height = this.canvas.offsetHeight;
     }
 
-    /**
-     * Logarithmisches Radius-Wachstum.
-     * radius = BASE + LOG_SCALE * ln(1 + amount)
-     * Für amount=0 → 30px, amount=1000 → ~186px, amount=1000000 → ~290px
-     */
-    private calcRadius(amount: number): number {
-        return BASE_RADIUS + LOG_SCALE * Math.log1p(Math.max(0, amount));
-    }
+    /** Radius = √(amount) * BASE_SCALE */
+    private calculator = new ResourceCircleCalculator();
 
-    /** Wird einmal pro Tick aufgerufen — aktualisiert Zielwerte */
     private onTick(_delta: number): void {
-        const stone = gameState.resources.get('stone') ?? 0;
-        const mana  = gameState.resources.get('mana')  ?? 0;
-        this.stoneRadius = this.calcRadius(stone);
-        this.manaRadius  = this.calcRadius(mana);
+        for (const circle of this.circles) {
+            const productionRate = resourceManager.getProducerRate(circle.id);
+            circle.targetRadius = this.calculator.calcDistanceRadius(productionRate);
+        }
     }
 
-    /** requestAnimationFrame-Loop — rendert mit Interpolation */
+    private onTick(_delta: number): void {
+        for (const circle of this.circles) {
+            const productionRate = resourceManager.getProducerRate(circle.id);
+            circle.targetRadius = this.calcDistanceRadius(productionRate);
+        }
+    }
+
     private startRenderLoop(): void {
         let lastTime = performance.now();
 
         const frame = (now: number): void => {
-            const dt = (now - lastTime) / 1000; // Sekunden
+            const dt = (now - lastTime) / 1000;
             lastTime = now;
 
             this.update(dt);
@@ -110,117 +151,187 @@ class ResourceCircleViewImpl {
         this.rafId = requestAnimationFrame(frame);
     }
 
-    /** Interpoliert aktuelle Radien sanft zu den Zielwerten */
     private update(dt: number): void {
-        const LERP_SPEED = 3.0; // höher = schneller
+        const LERP_SPEED = 2.0;
+        const manaFactor = worldMana.getWorldManaFactor();
 
-        this.stoneRadiusCurrent += (this.stoneRadius - this.stoneRadiusCurrent) * Math.min(1, LERP_SPEED * dt);
-        this.manaRadiusCurrent  += (this.manaRadius  - this.manaRadiusCurrent)  * Math.min(1, LERP_SPEED * dt);
+        for (const circle of this.circles) {
+            circle.currentRadius += (circle.targetRadius - circle.currentRadius) * Math.min(1, LERP_SPEED * dt);
+        }
 
-        // Puls-Phase weiterschreiben
-        if (this.pulse.active) {
-            this.pulse.phase += this.pulse.speed * dt;
-            // Puls läuft dauerhaft, solange MANA_LOW — kein Auto-Stop
+        // Pulsation bei niedrigem Mana
+        if (manaFactor < 0.5) {
+            this.pulsePhase += PULSE_SPEED * dt;
+        } else {
+            this.pulsePhase = 0;
         }
     }
 
     private render(): void {
         const w = this.canvas.width;
         const h = this.canvas.height;
-
         if (w === 0 || h === 0) return;
 
         this.ctx.clearRect(0, 0, w, h);
 
-        const sx = STONE_CENTER.x * w;
-        const sy = STONE_CENTER.y * h;
-        const mx = MANA_CENTER.x  * w;
-        const my = MANA_CENTER.y  * h;
+        const cx = w / 2;
+        const cy = h / 2;
 
-        // --- Stein-Kreis (hinter Mana) ---
-        this.drawCircle(
-            sx, sy,
-            this.stoneRadiusCurrent,
-            COLOR_STONE_FILL,
-            COLOR_STONE_STROKE,
-            1.5,
-            0
-        );
+        const manaFactor = worldMana.getWorldManaFactor();
+        const pulseOffset = (manaFactor < 0.5) ? Math.sin(this.pulsePhase) * PULSE_AMPLITUDE : 0;
 
-        // --- Mana-Kreis (mit optionalem Puls) ---
-        let manaExtraRadius = 0;
-        let manaFill   = COLOR_MANA_FILL;
-        let manaStroke = COLOR_MANA_STROKE;
+        // Kreise zeichnen in separaten leicht versetzten Punkten -> Überlappung vermeiden
+        const visibleCircles = [...this.circles].filter((c) => this.visibleResources.get(c.id));
+        const sortedCircles = visibleCircles.sort((a, b) => a.currentRadius - b.currentRadius);
 
-        if (this.pulse.active) {
-            // Subtiles Pulsieren: ±4px, Farbe wechselt zum Amber-Glühen
-            const pulse = Math.sin(this.pulse.phase);
-            manaExtraRadius = pulse * 4;
-            // Weiche Mischung: 0 = türkis, 1 = amber
-            const t = (pulse + 1) / 2; // 0..1
-            manaFill   = t > 0.5 ? COLOR_MANA_PULSE   : COLOR_MANA_FILL;
-            manaStroke = t > 0.5 ? COLOR_MANA_PULSE_STROKE : COLOR_MANA_STROKE;
+        for (const circle of sortedCircles) {
+            if (circle.currentRadius > 0) {
+                const rangeRatio = Math.min(1, Math.max(0, (circle.currentRadius - MIN_DISTANCE_RADIUS) / (MAX_DISTANCE_RADIUS - MIN_DISTANCE_RADIUS)));
+                const visualRadius = MIN_DISPLAY_RADIUS + rangeRatio * (MAX_DISPLAY_RADIUS - MIN_DISPLAY_RADIUS) + pulseOffset;
+
+                const offset = RESOURCE_OFFSETS[circle.id] || { x: 0, y: 0 };
+                const circleX = cx + offset.x;
+                const circleY = cy + offset.y;
+
+                this.drawCircleOutline(circleX, circleY, visualRadius, circle.stroke, 2);
+
+                const rate = resourceManager.getProducerRate(circle.id);
+                const distance = (rangeRatio * 100).toFixed(0);
+
+                // Legenden-Eintrag nach unten sammeln (kein Überlappen im Kreis)
+                circle.label = `${circle.symbol} ${circle.id} • Distance ${distance}% • ${rate.toFixed(1)} golems`;
+                circle.labelColor = circle.stroke;
+            }
         }
 
-        this.drawCircle(
-            mx, my,
-            this.manaRadiusCurrent + manaExtraRadius,
-            manaFill,
-            manaStroke,
-            1.5,
-            this.pulse.active ? Math.sin(this.pulse.phase * 0.5) * 0.15 : 0
-        );
-
-        // --- Labels ---
-        this.drawLabel(sx, sy + this.stoneRadiusCurrent + 18, '⛏ Stein', '#c8960c');
-        this.drawLabel(mx, my + this.manaRadiusCurrent + manaExtraRadius + 18, '✦ Mana', this.pulse.active ? COLOR_MANA_PULSE_STROKE : COLOR_MANA_STROKE);
-    }
-
-    /**
-     * Zeichnet einen gefüllten Kreis mit Outline.
-     * glowAlpha > 0 zeichnet zusätzlich einen weichen Glow-Ring.
-     */
-    private drawCircle(
-        x: number, y: number, radius: number,
-        fillColor: string, strokeColor: string,
-        lineWidth: number,
-        glowAlpha: number
-    ): void {
-        if (radius <= 0) return;
-
-        // Optionaler Glow (Amber-Glühen bei Puls)
-        if (glowAlpha > 0) {
-            // strokeColor ist ein Hex-Wert (#rrggbb) — in rgba umwandeln
-            const r = parseInt(strokeColor.slice(1, 3), 16);
-            const g = parseInt(strokeColor.slice(3, 5), 16);
-            const b = parseInt(strokeColor.slice(5, 7), 16);
-            const innerColor = `rgba(${r},${g},${b},${glowAlpha.toFixed(2)})`;
-            const grad = this.ctx.createRadialGradient(x, y, radius * 0.8, x, y, radius * 1.4);
-            grad.addColorStop(0, innerColor);
-            grad.addColorStop(1, 'rgba(0,0,0,0)');
-            this.ctx.beginPath();
-            this.ctx.arc(x, y, radius * 1.4, 0, Math.PI * 2);
-            this.ctx.fillStyle = grad;
-            this.ctx.fill();
+        // Draw legend text lines at bottom
+        let legendY = h - 20;
+        this.ctx.textAlign = 'left';
+        for (const circle of sortedCircles) {
+            if (!circle.label || !circle.labelColor) continue;
+            this.ctx.fillStyle = circle.labelColor;
+            this.ctx.fillText(circle.label, 12, legendY);
+            legendY -= 16;
         }
 
-        // Füllung
+        // Hinweis: Mittelpunkt des Panels
         this.ctx.beginPath();
-        this.ctx.arc(x, y, radius, 0, Math.PI * 2);
-        this.ctx.fillStyle = fillColor;
+        this.ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+        this.ctx.fillStyle = 'rgba(120, 90, 40, 0.8)';
         this.ctx.fill();
-
-        // Outline
-        this.ctx.lineWidth = lineWidth;
-        this.ctx.strokeStyle = strokeColor;
+        this.ctx.strokeStyle = '#d8b47a';
+        this.ctx.lineWidth = 1;
         this.ctx.stroke();
     }
 
-    private drawLabel(x: number, y: number, text: string, color: string): void {
-        this.ctx.font = '13px monospace';
-        this.ctx.fillStyle = color;
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText(text, x, y);
+    private drawCircleOutline(x: number, y: number, radius: number, strokeColor: string, lineWidth: number): void {
+        if (radius <= 0) return;
+
+        this.ctx.beginPath();
+        this.ctx.arc(x, y, radius, 0, Math.PI * 2);
+        this.ctx.strokeStyle = strokeColor;
+        this.ctx.lineWidth = lineWidth;
+        this.ctx.stroke();
+    }
+
+
+    private createControlPanel(): void {
+        const panel = document.createElement('div');
+        panel.style.position = 'absolute';
+        panel.style.left = '12px';
+        panel.style.bottom = '12px';
+        panel.style.padding = '0.35rem';
+        panel.style.background = 'rgba(18, 14, 8, 0.82)';
+        panel.style.border = '1px solid #5a401e';
+        panel.style.borderRadius = '6px';
+        panel.style.color = '#d8b47a';
+        panel.style.font = '11px monospace';
+        panel.style.zIndex = '20';
+        panel.style.maxHeight = '300px';
+        panel.style.maxWidth = '320px';
+        panel.style.overflow = 'hidden'; // Für Collapsing
+
+        // Header mit Titel und Close-Button
+        const header = document.createElement('div');
+        header.style.display = 'flex';
+        header.style.justifyContent = 'space-between';
+        header.style.alignItems = 'center';
+        header.style.marginBottom = '0.25rem';
+        header.style.fontWeight = 'bold';
+
+        const title = document.createElement('span');
+        title.textContent = 'Map: Resource Circles';
+        header.appendChild(title);
+
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '×';
+        closeBtn.title = 'Panel zuklappen';
+        closeBtn.style.background = 'none';
+        closeBtn.style.border = 'none';
+        closeBtn.style.color = '#d8b47a';
+        closeBtn.style.fontSize = '14px';
+        closeBtn.style.cursor = 'pointer';
+        closeBtn.style.padding = '0';
+        closeBtn.addEventListener('click', () => {
+            const content = panel.querySelector('.panel-content') as HTMLElement;
+            if (content) {
+                const isCollapsed = content.style.display === 'none';
+                content.style.display = isCollapsed ? 'block' : 'none';
+                closeBtn.textContent = isCollapsed ? '×' : '▼';
+                closeBtn.title = isCollapsed ? 'Panel zuklappen' : 'Panel aufklappen';
+            }
+        });
+        header.appendChild(closeBtn);
+        panel.appendChild(header);
+
+        // Content-Container
+        const content = document.createElement('div');
+        content.className = 'panel-content';
+        content.style.display = 'block'; // Standardmäßig offen
+
+        // Canvas für Kreise
+        const canvas = document.createElement('canvas');
+        canvas.width = 280;
+        canvas.height = 180;
+        canvas.style.border = '1px solid #3a2a10';
+        canvas.style.borderRadius = '4px';
+        canvas.style.background = 'rgba(0, 0, 0, 0.1)';
+        content.appendChild(canvas);
+
+        // Toggles
+        const togglesDiv = document.createElement('div');
+        togglesDiv.style.marginTop = '0.3rem';
+        togglesDiv.style.fontSize = '10px';
+
+        for (const def of RESOURCE_DEFS) {
+            const row = document.createElement('label');
+            row.style.display = 'block';
+            row.style.cursor = 'pointer';
+            row.style.marginBottom = '0.08rem';
+
+            const chk = document.createElement('input');
+            chk.type = 'checkbox';
+            chk.checked = true;
+            chk.style.marginRight = '0.3rem';
+            chk.addEventListener('change', () => {
+                this.visibleResources.set(def.id, chk.checked);
+            });
+
+            row.appendChild(chk);
+            row.appendChild(document.createTextNode(`${def.symbol} ${def.id}`));
+            togglesDiv.appendChild(row);
+        }
+        content.appendChild(togglesDiv);
+
+        panel.appendChild(content);
+
+        // Canvas zuweisen
+        this.canvas = canvas;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('ResourceCircleView: Canvas 2D-Kontext nicht verfügbar.');
+        this.ctx = ctx;
+
+        document.body.appendChild(panel);
     }
 
     destroy(): void {

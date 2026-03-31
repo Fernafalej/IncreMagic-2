@@ -7,8 +7,12 @@ import { ticker } from '../core/Ticker.js';
 import { eventBus } from '../core/EventBus.js';
 import { gameState } from '../core/GameState.js';
 
-// Regenerationsrate: langsam, aber messbar (v0.2: erhöht auf 5/s)
+// Regenerationsrate: aktive Erholung (z.B. durch Forschung oder Ruhe)
 const REGEN_RATE_PER_SECOND = 5;
+
+// Passives Wachstum: die Welt erzeugt von sich aus langsam Magie nach.
+// Klein genug dass Golems es überwiegen können, aber nie ganz auf 0 fallen.
+const PASSIVE_GROWTH_PER_SECOND = 1;
 
 // Drain pro aktiver Golem-Rate-Einheit pro Sekunde.
 // Bei 10 aktiven Golems (rate=10): 10 * 0.4 = 4 drain/s.
@@ -46,7 +50,10 @@ class WorldManaImpl {
      * regenerate — WorldMana wächst stetig nach
      */
     regenerate(delta: number): void {
-        this.current = Math.min(this.capacity, this.current + REGEN_RATE_PER_SECOND * delta);
+        this.current = Math.min(
+            this.capacity,
+            this.current + (REGEN_RATE_PER_SECOND + PASSIVE_GROWTH_PER_SECOND) * delta,
+        );
     }
 
     /**

@@ -18,20 +18,22 @@ _Aktueller Meilenstein: v0.2 — Kern läuft_
 - [x] StartGolems 1 pro Ressource, Aufgabe H (2026-03-31)
 - [x] Balance Produktionsraten /10, Aufgabe I (2026-03-31)
 - [x] OrderQueue-UI, Aufgabe D (2026-03-31)
+- [x] UI-Cleanup: Ritual-Panel entfernen, Tick-Anzeige fixen + Versionsanzeige, Aufgabe F (2026-03-31)
+- [x] ResourceCircleView konzentrisch + kompakter, Aufgabe G (2026-03-31)
+- [x] ResourceCircleView als wegklappbares Panel unten links (2026-03-31)
+- [x] Mana und Stein deaktiviert, Version auf 0.2.1 aktualisiert (2026-03-31)
 
 ---
 
 ## v0.2 — Noch offen
 
-- [x] **E** — ResearchTree + RuneSystem Stub (`src/research/ResearchTree.ts`, `RuneSystem.ts`) — research-dev
-- [ ] **F** — UI-Cleanup: Ritual-Panel entfernen, Tick-Anzeige fixen (`src/ui/GolemView.ts`, `index.html`) — ui-dev
-- [ ] **G** — ResourceCircleView konzentrisch + kompakter (`src/ui/ResourceCircleView.ts`) — ui-dev
 - [ ] **J** — SaveManager localStorage (`src/saves/SaveManager.ts`, `src/main.ts`) — core-dev
 - [ ] **K** — Forschungs-UI Panel (`src/ui/ResearchView.ts`, `index.html`) — ui-dev _(nach E)_
 - [ ] **v0.2-1** — WorldMana Sigmoid-Kurve — resource-dev
 - [ ] **v0.2-2** — Scribe-Gebäude + Anteil-System — building-dev
 - [ ] **v0.2-3** — idle-golem Ressource — golem-dev
 - [ ] **v0.2-4** — Anteil-UI — ui-dev
+- [x] HarvestArea — Erntegebiet + Ressourcendichte pro Pool (`src/world/HarvestArea.ts`) (2026-03-31)
 
 ---
 

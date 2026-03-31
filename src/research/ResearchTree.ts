@@ -34,6 +34,16 @@ class ResearchTreeImpl {
             maxProgress: 10,
             unlocked: false,
         });
+
+        this.addResearch({
+            id: 'formula-inspection',
+            name: 'Formel-Inspektion',
+            description: 'Zeigt Produktionsformeln als Mouseover im HUD an.',
+            cost: new Map([['knowledge', 5]]),
+            unlocks: ['formula-tooltip'],
+            maxProgress: 5,
+            unlocked: false,
+        });
     }
 
     addResearch(research: ResearchNode): void {

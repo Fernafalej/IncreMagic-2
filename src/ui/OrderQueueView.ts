@@ -119,8 +119,13 @@ export class OrderQueueView {
             empty.className = 'order-queue-empty';
             empty.textContent = 'Keine Aufträge in der Queue';
             this.queueListEl.appendChild(empty);
+            // Verstecke den Container, wenn leer
+            this.container.style.display = 'none';
             return;
         }
+
+        // Zeige den Container, wenn Orders da sind
+        this.container.style.display = 'block';
 
         for (const req of requests) {
             const row = this.buildQueueRow(req);

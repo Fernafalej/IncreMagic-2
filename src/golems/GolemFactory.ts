@@ -95,9 +95,12 @@ class GolemFactoryImpl {
             return null;
         }
 
+        const golemClasses: GolemClass[] = ['earth-gatherer', 'water-gatherer', 'wood-gatherer'];
+        const selectedClass = golemClasses[nextGolemId % golemClasses.length];
+
         const golem: Golem = {
             id: generateGolemId(),
-            class: 'earth-gatherer',   // v0.1: Ritual erzeugt immer Erdsammler-Golems
+            class: selectedClass,
             quality: 1.0,
             order: null,
             taintLevel: 0,

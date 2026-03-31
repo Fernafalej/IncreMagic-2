@@ -15,6 +15,7 @@ Römerzeit-Magier, in eine Taschendimension verbannt. Du erschaffst Golems, schi
 ## 2. Kern-Mechaniken
 
 **Golems** ernten Ressourcen (wandern immer weiter) oder produzieren (verbrauchen Ressourcen).
+**Erntegebiete:** Jeder Golem-Pool hat einen eigenen `harvest_radius` der automatisch wächst wenn die lokale Ressourcendichte unter einen Schwellwert fällt — die Golems wandern weiter. Bei kritischem WorldMana schrumpft der Radius. Die Verwüstung breitet sich zwangsläufig aus. Details → `AREA_SPEC.md`
 **Scribe-Gebäude** produziert alle Golem-Arten automatisch aus `fired-golem` + `paper`. Spieler steuert Anteile mit absoluten Zahlen (z.B. `10 earth, 3 water, 1 scribe`).
 **WorldMana** wird von allen Entitäten verbraucht — anfangs Sigmoid-Kurve (Einbruch kommt überraschend), durch Forschung zunehmend linear.
 **Taint** entsteht bei WorldMana-Erschöpfung, korrumpiert Golems. Später als Ressource erntbar.
@@ -46,6 +47,9 @@ Römerzeit-Magier, in eine Taschendimension verbannt. Du erschaffst Golems, schi
 | ink | Spätspiel | Scribe-Verbrauch → `RESOURCE_SPEC.md` |
 | mana, stone | Ernte | Mittelspiel → `RESOURCE_SPEC.md` |
 | knowledge, souls, taint | Forschung/Taint | Spätspiel, TBD |
+| breath-of-life | wood_density im Holzsammler-Radius | Golem animieren → `AREA_SPEC.md` |
+| harvest_radius | pro Golem-Pool, dynamisch | Erntegebiet → `AREA_SPEC.md` |
+| resource_density | pro Golem-Pool, kontinuierlich | Lokale Dichte → `AREA_SPEC.md` |
 
 ---
 
@@ -58,7 +62,7 @@ incremagic/
 │   ├── resources/      → RESOURCE_SPEC.md
 │   ├── golems/         → GOLEM_SPEC.md
 │   ├── buildings/      → BUILDING_SPEC.md
-│   ├── world/          → WORLD_SPEC.md
+│   ├── world/          → WORLD_SPEC.md, AREA_SPEC.md
 │   ├── research/       → RESEARCH_SPEC.md
 │   ├── ui/             → UI_SPEC.md
 │   └── lore/           → LORE_SPEC.md
@@ -78,6 +82,11 @@ graph TD
     Ticker --> GolemManager
     Ticker --> WorldMana
     Ticker --> ScribeBuilding
+    Ticker --> HarvestArea
+
+    HarvestArea --> ResourceManager
+    HarvestArea --> GolemManager
+    HarvestArea --> WorldMana
 
     GolemManager --> ResourceManager
     GolemManager --> WorldMana
@@ -111,6 +120,9 @@ Erdtöne (Ocker, Lehm, Dunkelbraun) + Runen-Glühen (Türkis/Amber). Keine harte
 - [ ] Taint-Runs: eigene Spielregeln
 - [ ] Balance: WorldMana-Schwellenwerte, Sigmoid-Parameter
 - [ ] Ink: genaue Produktionskette
+- [ ] AREA_SPEC: Balance EXPANSION_RATE vs. growth_rate (Playtesting)
+- [ ] AREA_SPEC: harvest_radius in UI visualisieren? (v0.2 oder v0.3?)
+- [ ] AREA_SPEC: GolemManager-Producer-Logik durch HarvestArea ersetzen (wann?)
 
 ---
 

@@ -14,7 +14,7 @@ Danach: 3 Sätze — fertig / offen / nächstes.
 | `resource-dev` | ResourceManager, WorldMana, CraftingManager | `src/resources/` |
 | `golem-dev` | GolemFactory, GolemManager, OrderSystem | `src/golems/` |
 | `building-dev` | Scribe-Gebäude, Gebäude-System | `src/buildings/` |
-| `world-dev` | WorldMap, DimensionManager | `src/world/` |
+| `world-dev` | WorldMap, DimensionManager, HarvestArea, BreathOfLife | `src/world/` |
 | `research-dev` | ResearchTree, RuneSystem | `src/research/` |
 | `ui-dev` | Views, HUD, Panels | `src/ui/`, `index.html` |
 | `i18n-dev` | Übersetzungen, t() Funktion | `src/i18n/` |

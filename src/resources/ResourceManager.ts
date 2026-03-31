@@ -77,6 +77,38 @@ class ResourceManagerImpl {
     }
 
     /**
+     * getProducerRate — Gibt die aktuell registrierte Producer-Rate für die Ressource zurück.
+     */
+    getProducerRate(resourceId: string): number {
+        return this.producers.get(resourceId) ?? 0;
+    }
+
+    /**
+     * getProductionDetails — Berechnet Produktionsformel-Komponenten, ohne Zustand zu verändern.
+     */
+    getProductionDetails(resourceId: string): {
+        terms: { term: string; value: number; description: string }[];
+        perSecond: number;
+    } {
+        const totalRate = this.getProducerRate(resourceId);
+        const primeSqrt = PRIME_SQRT[resourceId] ?? 1;
+        const qualityMultiplier = 1.0;
+        const manaFactor = worldMana.getWorldManaFactor();
+        const scale = PRODUCTION_SCALE;
+        const perSecond = totalRate * primeSqrt * qualityMultiplier * manaFactor * scale;
+
+        const terms = [
+            { term: 'producer-rate', value: totalRate, description: 'Anzahl der aktiven Produzenten (z.B. Golems)' },
+            { term: '√prime', value: primeSqrt, description: 'Primzahl-Wurzel für diese Ressource (Balance-Faktor)' },
+            { term: 'quality', value: qualityMultiplier, description: 'Qualitäts-Multiplikator (derzeit 1.0)' },
+            { term: 'manaFactor', value: manaFactor, description: 'WorldMana-Faktor (beeinflusst alle Produktionen)' },
+            { term: 'scale', value: scale, description: 'Globaler Produktions-Skalierungsfaktor (Balance)' },
+        ];
+
+        return { terms, perSecond };
+    }
+
+    /**
      * addAmount — fügt direkt einen Betrag zu einer Ressource hinzu
      * Wird von CraftingManager für manuelle Aktionen und Crafting-Ergebnisse genutzt.
      */

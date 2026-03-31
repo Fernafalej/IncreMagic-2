@@ -8,6 +8,7 @@
 | `specs/GOLEM_SPEC.md` | `golem-dev` | GolemFactory, GolemManager, Pools, Ernte, Produktion, idle-golem |
 | `specs/BUILDING_SPEC.md` | `building-dev` | Scribe-Gebäude, Anteil-System, Gebäude aus magischen Wesen |
 | `specs/WORLD_SPEC.md` | `world-dev` | WorldMap, DimensionManager, Prestige |
+| `specs/AREA_SPEC.md` | `world-dev` | Erntegebiet, harvest_radius, resource_density, breath-of-life |
 | `specs/RESEARCH_SPEC.md` | `research-dev` | ResearchTree, Runen-Puzzle (Gather/Refine/Build), WorldMana/Taint-Forschung |
 | `specs/UI_SPEC.md` | `ui-dev` | Views, HUD, Panels, Anteil-UI |
 | `specs/I18N_SPEC.md` | `i18n-dev` | Übersetzungen, t() Funktion, Sprachdateien |

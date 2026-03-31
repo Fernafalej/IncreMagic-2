@@ -99,6 +99,14 @@
         text-align: right;
       }
 
+      .hud-version {
+        font-size: 0.62rem;
+        color: #7a6040;
+        margin-top: 0.25rem;
+        text-align: center;
+        font-style: italic;
+      }
+
       /* ===== Titel (oben mittig) ===== */
       #game-title {
         position: absolute;
@@ -177,89 +185,6 @@
         border: none;
         border-top: 1px solid #3a2a10;
         margin: 0.55rem 0;
-      }
-
-      /* --- Ritual-Fortschritt --- */
-      .ritual-progress {
-        display: flex;
-        align-items: center;
-        gap: 0.2rem;
-        flex-wrap: wrap;
-        margin-bottom: 0.55rem;
-        font-size: 0.72rem;
-        color: #5a4020;
-      }
-
-      .ritual-step {
-        padding: 0.1rem 0.3rem;
-        border-radius: 3px;
-        border: 1px solid #3a2a10;
-        transition: color 0.2s, border-color 0.2s;
-      }
-
-      .ritual-step.done {
-        color: #4ecdc4;
-        border-color: #4ecdc4;
-      }
-
-      .ritual-step.pending {
-        color: #c8960c;
-        border-color: #c8960c;
-      }
-
-      .ritual-arrow {
-        color: #3a2a10;
-        font-size: 0.65rem;
-      }
-
-      /* --- Ritual-Buttons --- */
-      .ritual-buttons {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.35rem;
-        margin-bottom: 0.45rem;
-      }
-
-      .ritual-btn {
-        background: rgba(42, 31, 14, 0.7);
-        border: 1px solid #5a3e1b;
-        border-radius: 4px;
-        color: #c8a96e;
-        font-family: monospace;
-        font-size: 0.78rem;
-        padding: 0.35rem 0.4rem;
-        cursor: pointer;
-        transition: border-color 0.15s, color 0.15s, background 0.15s;
-        text-align: center;
-      }
-
-      .ritual-btn:hover {
-        border-color: #c8960c;
-        color: #e8c87a;
-        background: rgba(90, 62, 27, 0.45);
-      }
-
-      .ritual-btn:active {
-        background: rgba(78, 205, 196, 0.12);
-        border-color: #4ecdc4;
-        color: #4ecdc4;
-      }
-
-      /* --- Ritual-Feedback --- */
-      .ritual-feedback {
-        min-height: 1.2rem;
-        font-size: 0.74rem;
-        text-align: center;
-        color: transparent;
-        transition: color 0.2s;
-      }
-
-      .ritual-feedback--success {
-        color: #4ecdc4;
-      }
-
-      .ritual-feedback--error {
-        color: #c84040;
       }
 
       /* --- Golem-Liste --- */

@@ -15,6 +15,7 @@ import { golemManager } from './golems/GolemManager.js';
 import { createOrder } from './golems/OrderSystem.js';
 import { researchTree } from './research/index.js';
 import './golems/ScribeGolem.js'; // Singleton initialisieren — läuft dann via Ticker
+import './world/HarvestArea.js';  // HarvestArea-Singleton initialisieren
 
 // --- Offline-Zeit prüfen ---
 const SAVE_KEY = 'incremagic_last_seen';
@@ -66,13 +67,8 @@ eventBus.on('RESEARCH_UNLOCKED', (event) => {
 
 // --- UI initialisieren ---
 
-// 1. ResourceCircleView auf dem Canvas
-const canvas = document.getElementById('game-canvas') as HTMLCanvasElement | null;
-if (canvas) {
-    new ResourceCircleView(canvas);
-} else {
-    console.error('[IncreMagic] Canvas #game-canvas nicht gefunden.');
-}
+// 1. ResourceCircleView als Panel
+new ResourceCircleView();
 
 // 2. HUD im Container
 const hudContainer = document.getElementById('hud-container') as HTMLElement | null;

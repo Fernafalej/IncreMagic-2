@@ -5,24 +5,24 @@
 
 ## 1. Ressourcen
 
-### Frühspiel
+### Ernte-Ressourcen (von Ernte-Golems gesammelt)
 | ID | Symbol | Herkunft |
 |---|---|---|
 | `earth` | 🟤 | Ernte-Golem |
 | `water` | 💧 | Ernte-Golem |
 | `wood` | 🪵 | Ernte-Golem |
+<!-- | `stone` | ⛏ | Ernte-Golem (Mittelspiel) — deaktiviert |
+| `mana` | ✦ | Ernte-Golem (Mittelspiel) — deaktiviert | -->
+
+### Produzierte Ressourcen (von spezialisierten Golems hergestellt)
+| ID | Symbol | Herkunft |
+|---|---|---|
 | `fire` | 🔥 | fire-tender Golem |
 | `clay` | 🧱 | clay-mixer Golem |
 | `fired-golem` | 🔶 | golem-baker Golem |
 | `paper` | 📄 | paper-maker Golem |
 | `idle-golem` | 🗿 | Scribe-Gebäude (ohne Auftrag) |
 | `ink` | 🖋 | Spätspiel, Scribe-Verbrauch |
-
-### Mittelspiel
-| ID | Symbol | respawnRatePerArea |
-|---|---|---|
-| `stone` | ⛏ | √7 ≈ 2.645 |
-| `mana` | ✦ | √11 ≈ 3.316 |
 
 ---
 

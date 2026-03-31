@@ -120,13 +120,22 @@ export class RitualPanel {
             return;
         }
 
-        // Ergebnis des Rituals landet im Pool-System (nicht im alten Einzelgolem-Pfad)
+        // Ergebnis des Rituals landet im Pool-System
         golemManager.addToPool(golem.class, '', 1);
-        golemManager.assignPool(golem.class, createOrder('HARVEST', 'earth', 0, 5));
+
+        const harvestMap: Record<string, string> = {
+            'earth-gatherer': 'earth',
+            'water-gatherer': 'water',
+            'wood-gatherer': 'wood',
+        };
+
+        if (golem.class in harvestMap) {
+            golemManager.assignPool(golem.class, createOrder('HARVEST', harvestMap[golem.class], 0, 5));
+        }
 
         this.currentSequence = [];
         this.updateProgressDisplay();
-        this.showFeedback('✦ Golem erschaffen! +1 Erdsammler im Pool.', 'success');
+        this.showFeedback(`✦ Golem erschaffen! +1 ${golem.class} im Pool.`, 'success');
         this.onRitualComplete?.();
     }
 

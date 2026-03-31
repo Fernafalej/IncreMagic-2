@@ -9,10 +9,11 @@
 
 - [ ] OrderQueue vollständig (repeat, priority, getAll, UI) — Aufgabe D
 - [ ] Erste Forschung: manuelle Aktion N× → Scribe-Automatisierung — Aufgabe E
-- [ ] UI-Cleanup: Ritual-Panel entfernen, Tick-Anzeige fixen — Aufgabe F
-- [ ] ResourceCircleView: konzentrisch + kompakter — Aufgabe G
+- [x] UI-Cleanup: Ritual-Panel entfernen, Tick-Anzeige fixen — Aufgabe F
+- [x] ResourceCircleView: konzentrisch + kompakter — Aufgabe G
 - [ ] SaveManager: localStorage Autosave — Aufgabe J
 - [ ] Forschungs-UI: Panel mit Toggle-Button — Aufgabe K
+- [x] HarvestArea — harvest_radius + resource_density + breath-of-life — Aufgabe v0.2-5
 - [ ] WorldMana Sigmoid-Kurve — Aufgabe v0.2-1
 - [ ] Scribe-Gebäude + Anteil-System — Aufgabe v0.2-2
 - [ ] idle-golem Ressource — Aufgabe v0.2-3

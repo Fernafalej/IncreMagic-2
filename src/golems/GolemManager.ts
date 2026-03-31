@@ -15,6 +15,7 @@
 import { Golem, GolemClass } from './GolemFactory.js';
 import { Order, OrderType } from './OrderSystem.js';
 import { resourceManager } from '../resources/ResourceManager.js';
+import { harvestAreaManager } from '../world/HarvestArea.js';
 import { eventBus } from '../core/EventBus.js';
 import { ticker } from '../core/Ticker.js';
 
@@ -111,6 +112,10 @@ class GolemManagerImpl {
         const existing = this.pools.get(key);
         if (existing) {
             existing.count += count;
+            // HarvestArea über neue Golem-Anzahl informieren
+            if (existing.order !== null && existing.order.type === 'HARVEST') {
+                harvestAreaManager.updateCount(existing.class, existing.count);
+            }
             console.log(`[GolemManager] Pool ${key}: +${count} → ${existing.count} gesamt.`);
         } else {
             const pool: GolemPool = { class: golemClass, variant, count, order: null };
@@ -129,16 +134,16 @@ class GolemManagerImpl {
         let assigned = false;
         for (const pool of this.pools.values()) {
             if (pool.class === golemClass) {
-                // Alten Producer entfernen
+                // Alten HarvestArea-Pool entfernen
                 if (pool.order !== null && pool.order.type === 'HARVEST') {
-                    resourceManager.removeProducer(pool.order.target, pool.count);
+                    harvestAreaManager.removePool(pool.class);
                 }
 
                 pool.order = order;
 
-                // Neuen Producer registrieren — count × 1 pro Golem
+                // Erntegebiet registrieren (ersetzt addProducer für HARVEST)
                 if (order.type === 'HARVEST') {
-                    resourceManager.addProducer(order.target, pool.count);
+                    harvestAreaManager.registerPool(pool.class, order.target, pool.count);
                 }
 
                 console.log(

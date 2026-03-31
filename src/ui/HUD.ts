@@ -9,6 +9,10 @@
  */
 import { gameState } from '../core/GameState.js';
 import { ticker } from '../core/Ticker.js';
+import { resourceManager } from '../resources/ResourceManager.js';
+import { researchTree } from '../research/index.js';
+
+const DEBUG_FORMULA_INSPECTOR = true; // im Debug/Dev-Modus permanent an
 
 interface ResourceDisplay {
     id: string;
@@ -54,8 +58,6 @@ class HUDImpl {
             { id: 'raw-golem',   symbol: '🗿', label: 'Roh-Golem'      },
             { id: 'fired-golem', symbol: '🔶', label: 'Gebr. Golem'    },
             { id: 'paper',       symbol: '📄', label: 'Papier'         },
-            { id: 'stone',       symbol: '⛏', label: 'Stein'          },
-            { id: 'mana',        symbol: '✦', label: 'Mana'           },
         ];
 
         for (const def of resourceDefs) {
@@ -77,6 +79,7 @@ class HUDImpl {
             const rateEl = document.createElement('span');
             rateEl.className = 'hud-rate';
             rateEl.textContent = '+0.00/s';
+            rateEl.title = 'Formel: (producer-rate × √prime × q × manaFactor × scale)';
 
             row.appendChild(symbolEl);
             row.appendChild(nameEl);
@@ -100,6 +103,12 @@ class HUDImpl {
         this.tickCounterEl.className = 'hud-tick';
         this.tickCounterEl.textContent = 'Tick: 0';
         this.container.appendChild(this.tickCounterEl);
+
+        // Versions-Anzeige
+        const versionEl = document.createElement('div');
+        versionEl.className = 'hud-version';
+        versionEl.textContent = 'IncreMagic v0.2';
+        this.container.appendChild(versionEl);
     }
 
     private onTick(_delta: number): void {
@@ -114,6 +123,21 @@ class HUDImpl {
                 ? `+${res.rate.toFixed(2)}/s`
                 : `${res.rate.toFixed(2)}/s`;
             res.rateEl.textContent = rateStr;
+        }
+
+        for (const res of this.resources) {
+            const details = resourceManager.getProductionDetails(res.id);
+            const formulaUnlocked = DEBUG_FORMULA_INSPECTOR || researchTree.isUnlocked('formula-inspection');
+
+            if (formulaUnlocked && details.terms.some(t => t.value > 0)) {
+                const termsText = details.terms.map(t => `${t.term}: ${t.value.toFixed(4)} (${t.description})`).join('\n');
+                const detailsText = `Produktion/s = ${details.perSecond.toFixed(3)}\n\n${termsText}`;
+                res.rateEl.title = `${detailsText}`;
+            } else if (formulaUnlocked) {
+                res.rateEl.title = 'Kein Producer aktiv (0 Rate).';
+            } else {
+                res.rateEl.title = 'Formel-Inspektion ist gesperrt. Forschung freischalten.';
+            }
         }
 
         if (this.tickCounterEl) {
