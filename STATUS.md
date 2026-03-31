@@ -1,6 +1,6 @@
 # INCREMAGIC — Projektstatus
-_Zuletzt aktualisiert: 2026-03-30_
-_Aktueller Meilenstein: v0.1 — Proof of Concept_
+_Zuletzt aktualisiert: 2026-03-31_
+_Aktueller Meilenstein: v0.2 — Kern läuft_
 
 ---
 
@@ -306,10 +306,27 @@ _Abgeschlossen: 2026-03-31 — resource-dev_
 
 ---
 
-## In Arbeit
-_(noch nichts)_
+## DONE: OrderQueue-UI (Aufgabe D)
+_Abgeschlossen: 2026-03-31 — ui-dev_
 
-## Als nächstes
+- [x] `src/ui/OrderQueueView.ts` — neu, DOM-basiert, kein Canvas
+  - Queue-Liste: orderQueue.getAll() → sortiert nach priority desc, zeigt Priorität, Typ/Ziel, repeat-Flag
+  - Aktionen pro Eintrag: Priorität ↑/↓ (setPriority), repeat ↻ (toggleRepeat), × entfernen (remove)
+  - Hinzufügen-Formular: Typ-Auswahl (HARVEST/CRAFT/WRITE/RESEARCH/BUILD), Ziel-Input, + Button (enqueue createOrderRequest)
+  - Fortschrittsbalken: scribeGolem.getWriteProgress() → fraktionaler Balken (0–100%)
+  - ticker.register() für Echtzeit-Updates
+- [x] `src/main.ts` — OrderQueueView importiert + initialisiert (#order-queue-container)
+- [x] `index.html` — `<div id="order-queue-container">` eingefügt (rechts unten, scrollbar), vollständiger CSS-Block für .order-queue-panel (halbtransparent, Erdton-Ästhetik)
+- [x] TypeScript strict — kein any, keine unused vars, `npx tsc --noEmit` ohne Fehler
+
+Schnittstellen-Änderungen: nein — alle Aufrufe über bestehende Public APIs (orderQueue, createOrderRequest, scribeGolem, ticker)
+
+Nächster Agent braucht:
+- `qa`: Teste Hinzufügen eines HARVEST earth-Auftrags, repeat aktivieren, Priorität ändern, entfernen; Fortschrittsbalken aktualisiert sich; mit Scribe-Pool + Papier → Auftrag wird abgeschlossen und bei repeat wieder eingereiht
+- `golem-dev`: Keine Änderungen nötig — OrderQueue-UI nutzt bestehende Interfaces
+- `research-dev`: Erste Forschung schaltet Scribe-Automatisierung frei (Aufgabe E)
+
+---
 
 ### v0.2 — noch offen (8 Pakete)
 
