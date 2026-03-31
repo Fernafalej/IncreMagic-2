@@ -13,6 +13,7 @@ import { GolemView } from './ui/GolemView.js';
 import { OrderQueueView } from './ui/OrderQueueView.js';
 import { golemManager } from './golems/GolemManager.js';
 import { createOrder } from './golems/OrderSystem.js';
+import { researchTree } from './research/index.js';
 import './golems/ScribeGolem.js'; // Singleton initialisieren — läuft dann via Ticker
 
 // --- Offline-Zeit prüfen ---
@@ -23,11 +24,20 @@ if (lastSeen) {
     calculateOffline(gameState, secondsOffline);
 }
 
+// --- Forschung laden ---
+const RESEARCH_SAVE_KEY = 'incremagic_research';
+const researchData = localStorage.getItem(RESEARCH_SAVE_KEY);
+if (researchData) {
+    researchTree.load(researchData);
+}
+
 // Letzten Zeitstempel merken (alle 5 Sekunden aktualisieren)
 setInterval(() => {
     localStorage.setItem(SAVE_KEY, String(Date.now()));
+    localStorage.setItem(RESEARCH_SAVE_KEY, researchTree.save());
 }, 5000);
 localStorage.setItem(SAVE_KEY, String(Date.now()));
+localStorage.setItem(RESEARCH_SAVE_KEY, researchTree.save());
 
 // --- Start-Setup: 1 Golem pro Ressource (kein Ritual nötig) ---
 // MASTER §2.1: "Spieler beginnt mit ~5 Golems (vorgegeben, kein leerer Start)"
@@ -48,6 +58,10 @@ eventBus.on('MANA_LOW', (event) => {
 
 eventBus.on('TAINT_RISING', (event) => {
     console.log(`[EventBus] TAINT_RISING — Amount: ${event.amount}`);
+});
+
+eventBus.on('RESEARCH_UNLOCKED', (event) => {
+    console.log(`[EventBus] RESEARCH_UNLOCKED empfangen — ID: ${event.nodeId}`);
 });
 
 // --- UI initialisieren ---
