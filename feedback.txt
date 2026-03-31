@@ -1,0 +1,9 @@
+# Feedback-Queue
+# Einen Eintrag pro Zeile oder Block. Ich lese das beim Start und arbeite es ab.
+# Format frei — Stichworte, Sätze, oder längere Beschreibungen.
+# Abgearbeitetes wandert automatisch in FEEDBACK_DONE.md.
+
+die scribe aufträge sollten vielleicht eher eine Verhältnismäßigkeit sein
+neue ressource "arbeitsloser Golem" der entsteht, wenn man leben einhaucht aber noch keinen zettel gegeben hat
+dann zettel um alle Golems zu 
+Golem ritual muss weg, da nicht sinnvoll
