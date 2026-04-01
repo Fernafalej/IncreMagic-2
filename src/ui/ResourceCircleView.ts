@@ -7,8 +7,8 @@
  * Bei worldManaFactor < 0.5: subtile Pulsation.
  */
 import { ticker } from '../core/Ticker.js';
-import { resourceManager } from '../resources/ResourceManager.js';
 import { worldMana } from '../resources/WorldMana.js';
+import { harvestAreaManager } from '../world/HarvestArea.js';
 
 // Nur harvestbare Ressourcen (gesammelt von Ernte-Golems, Pfade für Laufdistanz-Darstellung)
 const RESOURCE_DEFS = [
@@ -57,31 +57,6 @@ class ResourceCircleCalculator {
     }
 }
 
-/**
- * MapLegend
- *
- * Rendern von Listen-Labels im Canvas (kein Overlap, komplette Übersicht).
- */
-class MapLegend {
-    private ctx: CanvasRenderingContext2D;
-
-    constructor(ctx: CanvasRenderingContext2D) {
-        this.ctx = ctx;
-    }
-
-    renderLegend(lines: Array<{ text: string; color: string }>, x: number, h: number): void {
-        let legendY = h - 20;
-        this.ctx.textAlign = 'left';
-        this.ctx.font = '12px monospace';
-
-        for (const row of lines) {
-            this.ctx.fillStyle = row.color;
-            this.ctx.fillText(row.text, x, legendY);
-            legendY -= 16;
-        }
-    }
-}
-
 class ResourceCircleViewImpl {
     private canvas!: HTMLCanvasElement;
     private ctx!: CanvasRenderingContext2D;
@@ -123,15 +98,11 @@ class ResourceCircleViewImpl {
 
     private onTick(_delta: number): void {
         for (const circle of this.circles) {
-            const productionRate = resourceManager.getProducerRate(circle.id);
-            circle.targetRadius = this.calculator.calcDistanceRadius(productionRate);
-        }
-    }
-
-    private onTick(_delta: number): void {
-        for (const circle of this.circles) {
-            const productionRate = resourceManager.getProducerRate(circle.id);
-            circle.targetRadius = this.calcDistanceRadius(productionRate);
+            // Anzahl Golems, die diese Ressource harvesten
+            const harvestingGolems = harvestAreaManager.getAreas()
+                .filter(area => area.resourceId === circle.id)
+                .reduce((sum, area) => sum + area.count, 0);
+            circle.targetRadius = this.calculator.calcDistanceRadius(harvestingGolems);
         }
     }
 
@@ -195,11 +166,14 @@ class ResourceCircleViewImpl {
 
                 this.drawCircleOutline(circleX, circleY, visualRadius, circle.stroke, 2);
 
-                const rate = resourceManager.getProducerRate(circle.id);
-                const distance = (rangeRatio * 100).toFixed(0);
+                const rate = harvestAreaManager.getAreas()
+                    .filter(area => area.resourceId === circle.id)
+                    .reduce((sum, area) => sum + area.count, 0);
+                // rangeRatio: 0% = nahe (viele Golems), 100% = max. Suchentfernung (wenige Golems)
+                const radiusPct = (rangeRatio * 100).toFixed(0);
 
                 // Legenden-Eintrag nach unten sammeln (kein Überlappen im Kreis)
-                circle.label = `${circle.symbol} ${circle.id} • Distance ${distance}% • ${rate.toFixed(1)} golems`;
+                circle.label = `${circle.symbol} ${circle.id} · ${rate.toFixed(0)} Golems · Radius ${radiusPct}% v.max`;
                 circle.labelColor = circle.stroke;
             }
         }
@@ -238,7 +212,7 @@ class ResourceCircleViewImpl {
     private createControlPanel(): void {
         const panel = document.createElement('div');
         panel.style.position = 'absolute';
-        panel.style.left = '12px';
+        panel.style.right = '12px';
         panel.style.bottom = '12px';
         panel.style.padding = '0.35rem';
         panel.style.background = 'rgba(18, 14, 8, 0.82)';

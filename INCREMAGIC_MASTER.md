@@ -14,12 +14,15 @@ Römerzeit-Magier, in eine Taschendimension verbannt. Du erschaffst Golems, schi
 
 ## 2. Kern-Mechaniken
 
-**Golems** ernten Ressourcen (wandern immer weiter) oder produzieren (verbrauchen Ressourcen).
-**Erntegebiete:** Jeder Golem-Pool hat einen eigenen `harvest_radius` der automatisch wächst wenn die lokale Ressourcendichte unter einen Schwellwert fällt — die Golems wandern weiter. Bei kritischem WorldMana schrumpft der Radius. Die Verwüstung breitet sich zwangsläufig aus. Details → `AREA_SPEC.md`
-**Scribe-Gebäude** produziert alle Golem-Arten automatisch aus `fired-golem` + `paper`. Spieler steuert Anteile mit absoluten Zahlen (z.B. `10 earth, 3 water, 1 scribe`).
+**Golems** ernten Ressourcen oder produzieren (verbrauchen Ressourcen).
+**Erntegebiete:** Jeder Golem-Pool hat einen eigenen `harvest_radius` der automatisch wächst wenn die lokale Ressourcendichte unter einen Schwellwert fällt. Bei kritischem WorldMana schrumpft der Radius. Die Verwüstung breitet sich zwangsläufig aus. Details → `AREA_SPEC.md`
+**Logistisches Wachstum:** Alle Ressourcen und WorldMana haben einen Deckel — Wachstum ist am stärksten bei halber Kapazität. Details → `AREA_SPEC.md`
+**Scribe-Gebäude** produziert alle Golem-Arten automatisch aus `fired-golem` + `paper`. Spieler steuert Anteile mit absoluten Zahlen.
 **WorldMana** wird von allen Entitäten verbraucht — anfangs Sigmoid-Kurve (Einbruch kommt überraschend), durch Forschung zunehmend linear.
 **Taint** entsteht bei WorldMana-Erschöpfung, korrumpiert Golems. Später als Ressource erntbar.
 **Prestige** — Dimension erschöpft → Neustart, Forschung + Artefakte bleiben.
+**Flüchtigkeit** — bestimmte Ressourcen (breath-of-life, water) verflüchtigen sich ohne Lager. Details → `RESOURCE_SPEC.md`
+**Temperatur** — Gebäude haben eigene Temperaturen, abhängig von Brennmaterial und Bauart. Details → `TEMPERATURE_SPEC.md`
 
 ---
 
@@ -41,15 +44,14 @@ Römerzeit-Magier, in eine Taschendimension verbannt. Du erschaffst Golems, schi
 
 | Ressource | Herkunft | Details |
 |-----------|----------|---------|
-| earth, water, wood, fire | Ernte/Produktion | Frühspiel → `RESOURCE_SPEC.md` |
-| clay, fired-golem, paper | Produktion | Zwischenprodukte → `RESOURCE_SPEC.md` |
-| idle-golem | Scribe ohne Auftrag | Wartende Golems → `BUILDING_SPEC.md` |
+| earth, water, wood, reed | Ernte-Golem | Frühspiel → `RESOURCE_SPEC.md` |
+| clay, paper, fired-golem | Produktion | Zwischenprodukte → `RESOURCE_SPEC.md` |
+| membrane | Papier + Spieler-Magie | Crafting → `BREATH_SPEC.md` |
+| breath-of-life | Spieler / Membran / Pulmo Vitarum | Flüchtig → `BREATH_SPEC.md` |
+| idle-golem | Scribe ohne Auftrag | → `BUILDING_SPEC.md` |
 | ink | Spätspiel | Scribe-Verbrauch → `RESOURCE_SPEC.md` |
 | mana, stone | Ernte | Mittelspiel → `RESOURCE_SPEC.md` |
 | knowledge, souls, taint | Forschung/Taint | Spätspiel, TBD |
-| breath-of-life | wood_density im Holzsammler-Radius | Golem animieren → `AREA_SPEC.md` |
-| harvest_radius | pro Golem-Pool, dynamisch | Erntegebiet → `AREA_SPEC.md` |
-| resource_density | pro Golem-Pool, kontinuierlich | Lokale Dichte → `AREA_SPEC.md` |
 
 ---
 
@@ -59,9 +61,9 @@ Römerzeit-Magier, in eine Taschendimension verbannt. Du erschaffst Golems, schi
 incremagic/
 ├── src/
 │   ├── core/           → CORE_SPEC.md
-│   ├── resources/      → RESOURCE_SPEC.md
+│   ├── resources/      → RESOURCE_SPEC.md, BREATH_SPEC.md
 │   ├── golems/         → GOLEM_SPEC.md
-│   ├── buildings/      → BUILDING_SPEC.md
+│   ├── buildings/      → BUILDING_SPEC.md, TEMPERATURE_SPEC.md
 │   ├── world/          → WORLD_SPEC.md, AREA_SPEC.md
 │   ├── research/       → RESEARCH_SPEC.md
 │   ├── ui/             → UI_SPEC.md
@@ -87,6 +89,13 @@ graph TD
     HarvestArea --> ResourceManager
     HarvestArea --> GolemManager
     HarvestArea --> WorldMana
+
+    BreathSystem --> HarvestArea
+    BreathSystem --> ResourceManager
+    BreathSystem --> GolemManager
+
+    HeatedBuilding --> ResourceManager
+    HeatedBuilding --> WorldMana
 
     GolemManager --> ResourceManager
     GolemManager --> WorldMana
@@ -121,9 +130,10 @@ Erdtöne (Ocker, Lehm, Dunkelbraun) + Runen-Glühen (Türkis/Amber). Keine harte
 - [ ] Balance: WorldMana-Schwellenwerte, Sigmoid-Parameter
 - [ ] Ink: genaue Produktionskette
 - [ ] AREA_SPEC: Balance EXPANSION_RATE vs. growth_rate (Playtesting)
-- [ ] AREA_SPEC: harvest_radius in UI visualisieren? (v0.2 oder v0.3?)
-- [ ] AREA_SPEC: GolemManager-Producer-Logik durch HarvestArea ersetzen (wann?)
+- [ ] TEMPERATURE_SPEC: Nachheizen als Aktivmechanik oder passiv?
+- [ ] BREATH_SPEC: Name für Membran-Golem (Lateinisch?)
+- [ ] RESOURCE_SPEC: reed — eigener Golem-Typ oder Teil des water-gatherer-Gebiets?
 
 ---
 
-*Version: 0.2.0 | Zuletzt aktualisiert: 2026-03-31*
+*Version: 0.3.0 | Zuletzt aktualisiert: 2026-03-31*

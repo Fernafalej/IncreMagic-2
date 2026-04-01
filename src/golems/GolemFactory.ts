@@ -20,7 +20,8 @@ export type GolemClass =
     | 'earth-gatherer'
     | 'water-gatherer'
     | 'wood-gatherer'
-    | 'scribe';
+    | 'scribe'
+    | 'idle-golem';
 
 export interface Golem {
     id: string;

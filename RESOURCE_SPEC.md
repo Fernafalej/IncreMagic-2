@@ -5,90 +5,155 @@
 
 ## 1. Ressourcen
 
-### Ernte-Ressourcen (von Ernte-Golems gesammelt)
+### Frühspiel
 | ID | Symbol | Herkunft |
 |---|---|---|
 | `earth` | 🟤 | Ernte-Golem |
 | `water` | 💧 | Ernte-Golem |
 | `wood` | 🪵 | Ernte-Golem |
-<!-- | `stone` | ⛏ | Ernte-Golem (Mittelspiel) — deaktiviert |
-| `mana` | ✦ | Ernte-Golem (Mittelspiel) — deaktiviert | -->
+| `reed` | 🌿 | Ernte-Golem (am Wasser) |
+| `clay` | 🧱 | clay-mixer Golem (earth+water) |
+| `paper` | 📄 | paper-maker Golem (reed+water früh, wood+water später) |
+| `fired-golem` | 🔶 | golem-baker (Temperatur-abhängig → TEMPERATURE_SPEC.md) |
+| `breath-of-life` | 💨 | Spieler-Klick / Membran / Pulmo Vitarum → BREATH_SPEC.md |
+| `membrane` | 🔮 | Crafting: Papier-Stapel + Spieler-Magie |
+| `idle-golem` | 🗿 | Scribe-Gebäude (ohne Auftrag) |
 
-### Produzierte Ressourcen (von spezialisierten Golems hergestellt)
+### Mittelspiel
 | ID | Symbol | Herkunft |
 |---|---|---|
-| `fire` | 🔥 | fire-tender Golem |
-| `clay` | 🧱 | clay-mixer Golem |
-| `fired-golem` | 🔶 | golem-baker Golem |
-| `paper` | 📄 | paper-maker Golem |
-| `idle-golem` | 🗿 | Scribe-Gebäude (ohne Auftrag) |
+| `stone` | ⛏ | Ernte-Golem |
+| `mana` | ✦ | Ernte-Golem |
 | `ink` | 🖋 | Spätspiel, Scribe-Verbrauch |
 
----
-
-## 2. Produktions-Formel
-
-```
-// Ernte-Golems:
-respawnRatePerArea: earth→√2, water→√3, wood→√5, stone→√7, mana→√11
-
-// Alle Entitäten verbrauchen WorldMana:
-worldManaConsumption = entityCount * consumptionRate * delta
-```
+### Spätspiel
+| ID | Symbol | Herkunft |
+|---|---|---|
+| `knowledge` | 📚 | Forschung |
+| `souls` | 👻 | Nekromantie |
+| `taint` | 🌑 | WorldMana-Erschöpfung |
 
 ---
 
-## 3. WorldMana
+## 2. Papier-Produktionskette
+
+```
+FRÜHSPIEL:
+reed + water → paper   (manuell / paper-maker Golem)
+
+NACH FORSCHUNG "Papyrus-Presse":
+Papyrus-Presse (Gebäude) → automatisiert reed+water → paper
+
+SPÄTER (Forschung "Holzpapier"):
+wood + water → paper   (effizientere Methode, größere Mengen)
+```
+
+`reed` wächst am Wasser nach — `reed_density` im Erntegebiet abhängig von
+`water_density` (Details → AREA_SPEC.md §7 GROWTH_RATES).
+
+---
+
+## 3. Flüchtigkeit & Lagerung
+
+Bestimmte Ressourcen verflüchtigen sich wenn sie nicht gelagert werden.
+Der Spieler entdeckt dies organisch — erst durch `breath-of-life`, dann durch `water`.
+
+### Flüchtige Ressourcen
+| Ressource | Verflüchtigung | Lager |
+|---|---|---|
+| `breath-of-life` | schnell ohne Krug | Krug (→ langsam) |
+| `water` | langsam ohne Krug | Krug |
+| (später weitere) | TBD | TBD |
+
+### Flüchtigkeitsformel (überlinear)
+```
+// Ohne Lager:
+loss_per_second = BASE_LOSS + OVERFLOW_FACTOR × max(0, amount - soft_cap)²
+
+// Mit Krug (unter Kapazität):
+loss_per_second = STORED_LOSS_RATE   // sehr klein, fast null
+
+// Mit Krug (über Kapazität):
+overflow = amount - krug_capacity
+loss_per_second = STORED_LOSS_RATE + OVERFLOW_FACTOR × overflow²
+```
+
+**Spielgefühl:** Spieler merkt dass water nie richtig ansteigt → baut Krug →
+plötzlicher Boost → zu viele Wassergolems → Rebalancing-Moment.
+Das schaltet Forschung für weitere Lagerarten frei.
+
+### Krüge
+- Universelles Lager für flüchtige Ressourcen (water, breath-of-life, später Öl etc.)
+- Kapazität pro Krug: `KRU_CAPACITY` (Balance ausstehend)
+- Mehrere Krüge stapeln ihre Kapazität
+- Herstellung: earth + fire (Töpfern) → Krug
+
+---
+
+## 4. Produktions-Formel
+
+```
+yield_per_second = pool.count × resource_density × worldManaFactor × qualityFactor
+```
+
+Ressourcen-Wachstum logistisch (Details → AREA_SPEC.md §4):
+```
+growth = growth_rate × density × (1 - density / MAX_DENSITY)
+```
+
+Primzahl-Wurzeln für respawnRatePerArea:
+```
+earth  → √2  ≈ 1.414
+water  → √3  ≈ 1.732
+wood   → √5  ≈ 2.236
+reed   → √7  ≈ 2.645   (wächst schneller als Holz)
+stone  → √11 ≈ 3.316
+mana   → √13 ≈ 3.605
+```
+
+---
+
+## 5. WorldMana
 
 **Nie direkt anzeigen.** Spieler merkt es an Verlangsamung.
 
-### WorldManaFactor (beeinflusst alle Entitäten)
+```typescript
+// Regeneration logistisch:
+mana_regen = BASE_REGEN × worldMana × (1 - worldMana / capacity)
 
-```
-// Früh: Sigmoid — Einbruch kommt überraschend
-sigmoidFactor(x) = 1 / (1 + e^(-k * (x - threshold_slow)))
-
-// Nach WorldMana-Forschung: wird linearer
-// Nach Taint-Forschung: vollständig linear + bewusst steuerbar
-linearFactor(x) = clamp(x / capacity, 0.1, 1.0)
-
-// Übergang sigmoid→linear durch Forschung gesteuert (blend-Parameter 0.0→1.0)
-worldManaFactor = lerp(sigmoidFactor, linearFactor, researchBlend)
+// Schwellenwerte:
+threshold_slow  = 0.5 × capacity   // Sigmoid-Knick sichtbar
+threshold_taint = 0.2 × capacity   // Taint steigt
 ```
 
-### Verbrauch
-```
-// Jede Entität verbraucht WorldMana pro Tick:
-Ernte-Golem:       pool.count * distanzFaktor * delta
-Produktions-Golem: pool.count * aktivitätsFaktor * delta
-Scribe-Gebäude:    scribeCount * outputRate * delta
-Gebäude (später):  gebäudeGröße * delta
-
-// Regeneration: langsamer als Verbrauch bei aktivem Betrieb
-regeneration = regenRate * delta
-```
-
-### Schwellenwerte
-```
-threshold_slow  = 0.5 * capacity  // unter 50% → Sigmoid-Knick sichtbar
-threshold_taint = 0.2 * capacity  // unter 20% → Taint steigt
-```
+Übergang Sigmoid → Linear durch Forschung (blend-Parameter 0.0 → 1.0).
 
 ---
 
-## 4. Blackbox-Interface
+## 6. Offene Fragen
+
+- [ ] Feuer/Temperatur: Nachheizen als Aktivmechanik oder passiv? → TEMPERATURE_SPEC.md
+- [ ] Krug-Kapazität und Verlustrate: Balance ausstehend
+- [ ] reed: eigener Ernte-Golem oder Teil des water-gatherer-Gebiets?
+
+---
+
+## 7. Blackbox-Interface
 
 **ResourceManager gibt nach außen:**
 - `getAmount(resourceId): number`
 - `getProductionRate(resourceId): number`
 - `consume(resourceId, amount): boolean`
 - `produce(resourceId, amount): void`
+- `getStorageCapacity(resourceId): number`
+- `getLossRate(resourceId): number`
 
 **WorldMana gibt nach außen:**
-- `getSpeedFactor(): number` (0.1–1.0, sigmoid oder linear je Forschungsstand)
+- `getSpeedFactor(): number` (0.1–1.0)
 - `getTaintDelta(): number`
 - `consume(amount): void`
+- `setBlend(0.0–1.0): void`
 
 ---
 
-*Version: 0.2.0*
+*Version: 0.3.0 | Zuletzt aktualisiert: 2026-03-31*

@@ -11,46 +11,44 @@ import { ResourceCircleView } from './ui/ResourceCircleView.js';
 import { HUD } from './ui/HUD.js';
 import { GolemView } from './ui/GolemView.js';
 import { OrderQueueView } from './ui/OrderQueueView.js';
+import { SavePanel } from './ui/panels/SavePanel.js';
+import { ScribeListPanel } from './ui/panels/ScribeListPanel.js';
 import { golemManager } from './golems/GolemManager.js';
 import { createOrder } from './golems/OrderSystem.js';
-import { researchTree } from './research/index.js';
+import { saveManager } from './saves/SaveManager.js';
 import './golems/ScribeGolem.js'; // Singleton initialisieren — läuft dann via Ticker
 import './world/HarvestArea.js';  // HarvestArea-Singleton initialisieren
 
-// --- Offline-Zeit prüfen ---
-const SAVE_KEY = 'incremagic_last_seen';
-const lastSeen = localStorage.getItem(SAVE_KEY);
-if (lastSeen) {
-    const secondsOffline = Math.floor((Date.now() - parseInt(lastSeen, 10)) / 1000);
-    calculateOffline(gameState, secondsOffline);
+// --- Spielstand laden (HarvestAreas VOR GolemPools) ---
+const hasSave = saveManager.load();
+
+if (hasSave) {
+    // Offline-Zeit berechnen: lastSaved aus dem geladenen GameState
+    const lastSaved = (gameState as any).lastSaved as number | undefined;
+    if (lastSaved) {
+        const secondsOffline = Math.floor((Date.now() - lastSaved) / 1000);
+        if (secondsOffline > 0) {
+            calculateOffline(gameState, secondsOffline);
+        }
+    }
+} else {
+    // --- Start-Setup: 1 Golem pro Ressource (kein Ritual nötig) ---
+    // MASTER §2.1: "Spieler beginnt mit ~5 Golems (vorgegeben, kein leerer Start)"
+    // Je 1 Sammler-Golem für Erde, Wasser und Holz
+    golemManager.addToPool('earth-gatherer', '', 1);
+    golemManager.assignPool('earth-gatherer', createOrder('HARVEST', 'earth', 0, 5));
+
+    golemManager.addToPool('water-gatherer', '', 1);
+    golemManager.assignPool('water-gatherer', createOrder('HARVEST', 'water', 0, 5));
+
+    golemManager.addToPool('wood-gatherer', '', 1);
+    golemManager.assignPool('wood-gatherer', createOrder('HARVEST', 'wood', 0, 5));
 }
 
-// --- Forschung laden ---
-const RESEARCH_SAVE_KEY = 'incremagic_research';
-const researchData = localStorage.getItem(RESEARCH_SAVE_KEY);
-if (researchData) {
-    researchTree.load(researchData);
-}
-
-// Letzten Zeitstempel merken (alle 5 Sekunden aktualisieren)
+// --- Autosave alle 5 Sekunden ---
 setInterval(() => {
-    localStorage.setItem(SAVE_KEY, String(Date.now()));
-    localStorage.setItem(RESEARCH_SAVE_KEY, researchTree.save());
+    saveManager.save();
 }, 5000);
-localStorage.setItem(SAVE_KEY, String(Date.now()));
-localStorage.setItem(RESEARCH_SAVE_KEY, researchTree.save());
-
-// --- Start-Setup: 1 Golem pro Ressource (kein Ritual nötig) ---
-// MASTER §2.1: "Spieler beginnt mit ~5 Golems (vorgegeben, kein leerer Start)"
-// Je 1 Sammler-Golem für Erde, Wasser und Holz
-golemManager.addToPool('earth-gatherer', '', 1);
-golemManager.assignPool('earth-gatherer', createOrder('HARVEST', 'earth', 0, 5));
-
-golemManager.addToPool('water-gatherer', '', 1);
-golemManager.assignPool('water-gatherer', createOrder('HARVEST', 'water', 0, 5));
-
-golemManager.addToPool('wood-gatherer', '', 1);
-golemManager.assignPool('wood-gatherer', createOrder('HARVEST', 'wood', 0, 5));
 
 // --- EventBus: MANA_LOW Handler ---
 eventBus.on('MANA_LOW', (event) => {
@@ -92,6 +90,22 @@ if (orderQueueContainer) {
     new OrderQueueView(orderQueueContainer);
 } else {
     console.error('[IncreMagic] OrderQueueView-Container #order-queue-container nicht gefunden.');
+}
+
+// 5. SavePanel im Container
+const savePanelContainer = document.getElementById('save-panel-container') as HTMLElement | null;
+if (savePanelContainer) {
+    new SavePanel(savePanelContainer);
+} else {
+    console.error('[IncreMagic] SavePanel-Container #save-panel-container nicht gefunden.');
+}
+
+// 6. ScribeListPanel im Container
+const scribeListContainer = document.getElementById('scribe-list-container') as HTMLElement | null;
+if (scribeListContainer) {
+    new ScribeListPanel(scribeListContainer);
+} else {
+    console.error('[IncreMagic] ScribeListPanel-Container #scribe-list-container nicht gefunden.');
 }
 
 // --- Debug-UI (klein, Ecke) ---

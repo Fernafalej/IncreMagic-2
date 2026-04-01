@@ -122,6 +122,58 @@ class HarvestAreaManagerImpl {
         return Array.from(this.areas.values());
     }
 
+    // -----------------------------------------------------------------------
+    // Serialisierung / Deserialisierung / Reset (für SaveManager)
+    // -----------------------------------------------------------------------
+
+    /**
+     * serialize — exportiert alle Areas als plain Array.
+     * Speichert harvest_radius und resource_density damit Spielstand-Fortschritt erhalten bleibt.
+     */
+    serialize(): any {
+        const areas = Array.from(this.areas.values()).map((a) => ({
+            poolClass:        a.poolClass,
+            resourceId:       a.resourceId,
+            count:            a.count,
+            harvest_radius:   a.harvest_radius,
+            resource_density: a.resource_density,
+        }));
+        return { areas };
+    }
+
+    /**
+     * deserialize — stellt Areas VOLLSTÄNDIG wieder her (Radius + Density).
+     * Muss VOR golemManager.deserialize aufgerufen werden.
+     */
+    deserialize(data: any): void {
+        this.areas.clear();
+        if (!data?.areas) return;
+
+        for (const a of data.areas) {
+            const primeSqrt  = HARVEST_PRIME_SQRT[a.resourceId] ?? Math.sqrt(2);
+            const growthRate = BASE_GROWTH_RATE / primeSqrt;
+
+            this.areas.set(a.poolClass as GolemClass, {
+                poolClass:        a.poolClass as GolemClass,
+                resourceId:       a.resourceId,
+                count:            a.count ?? 0,
+                harvest_radius:   a.harvest_radius  ?? AREA_CONSTANTS.START_RADIUS,
+                resource_density: a.resource_density ?? AREA_CONSTANTS.INITIAL_DENSITY,
+                growth_rate:      growthRate,
+                prime_sqrt:       primeSqrt,
+            });
+        }
+        console.log(`[HarvestAreaManager] Deserialisiert: ${data.areas.length} Area(s).`);
+    }
+
+    /**
+     * reset — leert alle Areas.
+     */
+    reset(): void {
+        this.areas.clear();
+        console.log('[HarvestAreaManager] Reset: alle Areas geleert.');
+    }
+
     private tick(delta: number): void {
         const manaFactor = worldMana.getWorldManaFactor();
         let woodDensity = 0;

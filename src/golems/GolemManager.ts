@@ -177,8 +177,12 @@ class GolemManagerImpl {
 
         if (orderType === 'HARVEST') {
             golemClass = harvestMap[target];
+        } else if (orderType === 'WRITE') {
+            // WRITE wird von ScribeGolem direkt behandelt — kein Pool-Dispatch nötig
+            console.warn('[GolemManager] dispatchOrder: WRITE wird von ScribeGolem direkt behandelt.');
+            return;
         } else {
-            // Bei WRITE, CRAFT, BUILD etc. ist target direkt der GolemClass-Bezeichner
+            // Bei CRAFT, BUILD etc. ist target direkt der GolemClass-Bezeichner
             golemClass = target as GolemClass;
         }
 
@@ -195,6 +199,72 @@ class GolemManagerImpl {
      */
     getPool(): GolemPool[] {
         return Array.from(this.pools.values());
+    }
+
+    // -----------------------------------------------------------------------
+    // Serialisierung / Deserialisierung / Reset (für SaveManager)
+    // -----------------------------------------------------------------------
+
+    /**
+     * serialize — exportiert alle Pools als plain Array.
+     * Format: [{ class, variant, count, order }]
+     */
+    serialize(): any {
+        const pools = Array.from(this.pools.values()).map((p) => ({
+            class:   p.class,
+            variant: p.variant,
+            count:   p.count,
+            order:   p.order ? {
+                type:     p.order.type,
+                target:   p.order.target,
+                quantity: p.order.quantity,
+                priority: p.order.priority,
+            } : null,
+        }));
+        return { pools };
+    }
+
+    /**
+     * deserialize — stellt Pools aus gespeichertem Objekt wieder her.
+     * Ruft harvestAreaManager.registerPool für HARVEST-Pools auf.
+     * Setzt kein dispatch ab — Orders sind bereits über HarvestArea restauriert.
+     */
+    deserialize(data: any): void {
+        this.pools.clear();
+        this.golems.clear();
+
+        if (!data?.pools) return;
+
+        for (const p of data.pools) {
+            const key = `${p.class}::${p.variant}`;
+            const pool: GolemPool = {
+                class:   p.class as GolemClass,
+                variant: p.variant ?? '',
+                count:   p.count ?? 0,
+                order:   p.order ?? null,
+            };
+            this.pools.set(key, pool);
+
+            // HarvestArea-Pool neu registrieren wenn Auftrag HARVEST war
+            if (pool.order !== null && pool.order.type === 'HARVEST') {
+                harvestAreaManager.registerPool(pool.class, pool.order.target, pool.count);
+            }
+        }
+        console.log(`[GolemManager] Deserialisiert: ${data.pools.length} Pool(s).`);
+    }
+
+    /**
+     * reset — leert alle Pools und entfernt HarvestArea-Registrierungen.
+     */
+    reset(): void {
+        for (const pool of this.pools.values()) {
+            if (pool.order !== null && pool.order.type === 'HARVEST') {
+                harvestAreaManager.removePool(pool.class);
+            }
+        }
+        this.pools.clear();
+        this.golems.clear();
+        console.log('[GolemManager] Reset: alle Pools geleert.');
     }
 
     /**

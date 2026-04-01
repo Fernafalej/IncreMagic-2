@@ -10,9 +10,6 @@ Die Golems ernten innerhalb dieses Kreises. Wenn die Ressourcendichte zu gering 
 wächst der Radius automatisch (Golems wandern weiter). Wenn WorldMana zu niedrig wird,
 schrumpft der Radius (Golems sind zu erschöpft für weite Wege).
 
-Jede Ressource hat eine natürliche Wachstumsrate pro Fläche. Der Einbruch kommt wenn
-der Radius schneller wächst als die Natur nachwachsen kann.
-
 **Metanarrative:** Der Verwüstungskreis wächst zwangsläufig nach außen. Irgendwann hat
 der Spieler die ganze Dimension kahl gefressen — ohne es gemerkt zu haben.
 
@@ -22,10 +19,10 @@ der Spieler die ganze Dimension kahl gefressen — ohne es gemerkt zu haben.
 
 ```typescript
 interface HarvestArea {
-    poolClass: GolemClass;       // Zugehöriger Pool
-    harvest_radius: number;      // Aktueller Radius (kontinuierlich)
+    poolClass: GolemClass;
+    harvest_radius: number;      // aktueller Radius (kontinuierlich)
     resource_density: number;    // Dichte der Zielressource (Einheit/Fläche)
-    growth_rate: number;         // Natürliche Regeneration pro Fläche/s
+    growth_rate: number;         // natürliche Regeneration pro Fläche/s
 }
 ```
 
@@ -41,18 +38,41 @@ yield_per_second    = pool.count × resource_density × worldManaFactor × quali
 
 ---
 
-## 4. Radius-Dynamik (kontinuierlich)
+## 4. Logistisches Wachstum (Deckel)
+
+Alle Ressourcen haben eine maximale Dichte — zu wenig hat nichts zum Ausbreiten,
+zu viel konkurriert mit sich selbst.
+
+```
+// Pro Tick, pro HarvestArea:
+growth = growth_rate × resource_density × (1 - resource_density / MAX_DENSITY)
+
+// density ≈ 0       → kaum Wachstum (nichts da)
+// density ≈ MAX/2   → maximales Wachstum
+// density ≈ MAX     → Wachstum gegen null (Konkurrenz)
+```
+
+WorldMana regeneriert analog:
+```
+mana_regen = BASE_REGEN × worldMana × (1 - worldMana / capacity)
+```
+
+---
+
+## 5. Radius-Dynamik (kontinuierlich)
 
 ```
 // Wächst wenn Ressource knapp wird
 wenn resource_density < EXPANSION_THRESHOLD:
     deficit = EXPANSION_THRESHOLD - resource_density
+    radius_alt = harvest_radius
     harvest_radius += EXPANSION_RATE × deficit × delta
-    // Neu erschlossene Fläche bekommt volle Ausgangsdichte
-    new_area = π × (harvest_radius_neu² - harvest_radius_alt²)
-    resource_density += (new_area × INITIAL_DENSITY) / effective_area_neu
 
-// Schrumpft wenn WorldMana kritisch wird
+    // Neu erschlossene Fläche hat volle Ausgangsdichte → gemischter Durchschnitt
+    new_area = π × (harvest_radius² - radius_alt²)
+    resource_density = gewichteter Durchschnitt(alte Dichte, INITIAL_DENSITY, Flächenanteile)
+
+// Schrumpft wenn WorldMana kritisch
 wenn worldManaFactor < COLLAPSE_THRESHOLD:
     collapse_force = COLLAPSE_THRESHOLD - worldManaFactor
     harvest_radius -= COLLAPSE_RATE × collapse_force × delta
@@ -61,41 +81,16 @@ wenn worldManaFactor < COLLAPSE_THRESHOLD:
 harvest_radius = max(harvest_radius, START_RADIUS)
 ```
 
-**Spielgefühl:** Expansion bringt kurz frische Dichte → kurzer Ertrags-Boom →
-dann wieder Erschöpfung → nächste Expansion. Das ist der natürliche Puls des Spiels.
-
----
-
-## 5. Ressourcen-Regeneration
-
-```
-// Pro Tick, pro Pool
-resource_density += growth_rate × delta
-resource_density = min(resource_density, MAX_DENSITY)
-```
-
-Jede Ressource hat eine eigene `growth_rate`. Erde wächst langsam nach,
-Wasser füllt sich schneller, Holz am langsamsten.
-
 ---
 
 ## 6. Breath of Life (Sonderfall)
 
 Kein eigenes "plants"-System. Pflanzen **sind** `wood_density` des Holzsammler-Pools.
+Details zur Produktionskette → `BREATH_SPEC.md`.
 
 ```
-breath_per_second = BASE_BREATH + (wood_pool.resource_density × BREATH_FACTOR)
+ambient_breath = BASE_BREATH + (wood_pool.resource_density × BREATH_FACTOR)
 ```
-
-- `BASE_BREATH` — fix, klein, reicht für langsamen Golem-Takt (auch ohne Pflanzen)
-- `BREATH_FACTOR` — Multiplikator für Pflanzendichte
-
-**Kausalität:** Holzsammler ernten → `wood_density` sinkt → `breath_per_second` sinkt →
-Golem-Erschaffung verlangsamt sich → Holzsammler-Pool wächst langsamer → Radius wächst →
-neue Fläche → kurze Erholung. Das ist der Herzschlag des Spiels.
-
-`breath-of-life` akkumuliert als Ressource und wird beim Golem-Animieren verbraucht
-(1 Atemzug pro Golem-Erschaffung).
 
 ---
 
@@ -103,25 +98,25 @@ neue Fläche → kurze Erholung. Das ist der Herzschlag des Spiels.
 
 ```typescript
 const AREA_CONSTANTS = {
-    START_RADIUS:          10,
-    INITIAL_DENSITY:       1.0,   // Volle Dichte in unberührtem Gebiet
-    MAX_DENSITY:           1.0,
+    START_RADIUS:         10,
+    INITIAL_DENSITY:      1.0,
+    MAX_DENSITY:          1.0,
 
-    EXPANSION_THRESHOLD:   0.3,   // 30% Restdichte → Expansion beginnt
-    EXPANSION_RATE:        0.5,
-    COLLAPSE_THRESHOLD:    0.2,   // WorldManaFactor < 20% → Schrumpfung
-    COLLAPSE_RATE:         0.3,
+    EXPANSION_THRESHOLD:  0.3,
+    EXPANSION_RATE:       0.5,
+    COLLAPSE_THRESHOLD:   0.2,
+    COLLAPSE_RATE:        0.3,
 
-    // growth_rate pro Ressource (Einheit/Fläche/s)
     GROWTH_RATES: {
         earth: 0.01,
         water: 0.03,
-        wood:  0.005,   // Holz wächst am langsamsten → Breath of Life unter Druck
+        wood:  0.005,   // langsamste Regeneration → Breath of Life unter Druck
         stone: 0.001,
+        reed:  0.008,   // Schilf wächst am Wasser nach
     },
 
-    BASE_BREATH:    0.05,   // Atemzüge/s aus der Ferne (Minimum)
-    BREATH_FACTOR:  0.2,    // Atemzüge/s pro Einheit wood_density
+    BASE_BREATH:   0.05,
+    BREATH_FACTOR: 0.2,
 };
 ```
 
@@ -130,9 +125,8 @@ const AREA_CONSTANTS = {
 ## 8. Spätere Erweiterungen (nicht jetzt)
 
 - `water_density` + `earth_density` beeinflussen `wood growth_rate`
-- Forschung: "Selektive Ernte" — erhöht `EXPANSION_THRESHOLD`, Golems lassen mehr stehen
+- Forschung: "Selektive Ernte" — erhöht `EXPANSION_THRESHOLD`
 - Forschung: "Pflanzenzucht" — erhöht `growth_rate` für wood
-- Forschung: "Kartographie" — macht `harvest_radius` in der UI sichtbar
 - Gebiete als benannte Entitäten (für Dimensionswechsel und Ruinen)
 
 ---
@@ -140,12 +134,8 @@ const AREA_CONSTANTS = {
 ## 9. Abhängigkeiten
 
 ```
-HarvestArea liest:   GolemManager (pool.count, pool.class)
-HarvestArea liest:   WorldMana (worldManaFactor)
-HarvestArea schreibt: ResourceManager (yield als Producer registrieren)
-HarvestArea schreibt: ResourceManager ('breath-of-life' Producer)
+HarvestArea liest:    GolemManager (pool.count, pool.class)
+HarvestArea liest:    WorldMana (worldManaFactor)
+HarvestArea schreibt: ResourceManager (yield als Producer)
+HarvestArea schreibt: ResourceManager ('breath-of-life' ambient rate)
 ```
-
-`HarvestArea` ersetzt die direkte `addProducer`-Logik in `GolemManager`.
-Golems produzieren nicht mehr direkt — sie definieren einen Pool,
-`HarvestArea` berechnet den tatsächlichen Ertrag.

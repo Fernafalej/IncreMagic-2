@@ -22,17 +22,18 @@ _Aktueller Meilenstein: v0.2 — Kern läuft_
 - [x] ResourceCircleView konzentrisch + kompakter, Aufgabe G (2026-03-31)
 - [x] ResourceCircleView als wegklappbares Panel unten links (2026-03-31)
 - [x] Mana und Stein deaktiviert, Version auf 0.2.1 aktualisiert (2026-03-31)
+- [x] SaveManager: localStorage Autosave + JSON Export/Import + Hard Reset (2026-03-31)
 
 ---
 
 ## v0.2 — Noch offen
 
-- [ ] **J** — SaveManager localStorage (`src/saves/SaveManager.ts`, `src/main.ts`) — core-dev
+- [x] **J** — SaveManager localStorage (`src/saves/SaveManager.ts`, `src/main.ts`) — core-dev
 - [ ] **K** — Forschungs-UI Panel (`src/ui/ResearchView.ts`, `index.html`) — ui-dev _(nach E)_
 - [ ] **v0.2-1** — WorldMana Sigmoid-Kurve — resource-dev
-- [ ] **v0.2-2** — Scribe-Gebäude + Anteil-System — building-dev
-- [ ] **v0.2-3** — idle-golem Ressource — golem-dev
-- [ ] **v0.2-4** — Anteil-UI — ui-dev
+- [x] **v0.2-2** — ScribeList + Auto-WRITE-Orders + fired-golem Verbrauch (2026-03-31)
+- [x] **v0.2-3** — idle-golem als GolemClass (2026-03-31)
+- [x] **v0.2-4** — ScribeListPanel: Ziele konfigurieren per +/- (2026-03-31)
 - [x] HarvestArea — Erntegebiet + Ressourcendichte pro Pool (`src/world/HarvestArea.ts`) (2026-03-31)
 
 ---

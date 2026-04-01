@@ -154,6 +154,39 @@ class OrderQueueImpl {
         }
     }
 
+    // -----------------------------------------------------------------------
+    // Serialisierung / Deserialisierung / Reset (für SaveManager)
+    // -----------------------------------------------------------------------
+
+    /**
+     * serialize — exportiert die Queue als plain Array.
+     */
+    serialize(): any {
+        return { queue: [...this.queue] };
+    }
+
+    /**
+     * deserialize — stellt die Queue wieder her. KEIN dispatch!
+     * Aufträge werden nur im Speicher restauriert, nicht erneut an Golems vergeben.
+     */
+    deserialize(data: any): void {
+        this.queue = [];
+        if (!data?.queue) return;
+        for (const r of data.queue) {
+            this.queue.push({ ...r });
+        }
+        this.sort();
+        console.log(`[OrderQueue] Deserialisiert: ${this.queue.length} Eintrag/-räge.`);
+    }
+
+    /**
+     * reset — leert die Queue.
+     */
+    reset(): void {
+        this.queue = [];
+        console.log('[OrderQueue] Reset: Queue geleert.');
+    }
+
     // --- Interne Hilfsfunktionen ---
 
     private sort(): void {
